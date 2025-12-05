@@ -146,6 +146,7 @@ async function scanNFC() {
         output += `Type: ${record.recordType}\n`;
         output += `MIME: ${record.mediaType}\n`;
         output += `ID: ${record.id}\n`;
+        output += `SERIAL NUMBER: ${event.serialNumber}\n`;
     
         try {
           const decoder = new TextDecoder(record.encoding || "utf-8");
