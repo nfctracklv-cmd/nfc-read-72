@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>NFC Time Tracking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 20px;
+      background: #f4f4f7;
+      text-align: center;
+    }
+    .card {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 24px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 18px;
+      border-radius: 999px;
+      border: none;
+      margin: 10px 0;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+    }
+    .btn-scan { background: #2980b9; }
+    .btn-in   { background: #27ae60; }
+    .btn-out  { background: #c0392b; }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      margin-top: 12px;
+      box-sizing: border-box;
+    }
+
+    #status {
+      margin-top: 16px;
+      min-height: 24px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>Отметка времени</h2>
+
+    <div id="nameBlock" style="display:none;">
+      <p>Введите ваше имя:</p>
+      <input id="nameInput" placeholder="Например: Иван Петров">
+      <button class="btn-scan" onclick="saveName()">Сохранить</button>
+    </div>
+
+    <div id="mainBlock" style="display:none;">
+      <p>Сотрудник: <b id="userName"></b></p>
+
+      <button class="btn-scan" onclick="scanNFC()">Сканировать NFC</button>
+      <button class="btn-in" onclick="sendAction('CHECK_IN')">Check-in</button>
+      <button class="btn-out" onclick="sendAction('CHECK_OUT')">Check-out</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycby4bCf2jqQani5i0izaY3wq8gUrRozgvh1cBbHpXkP9/dev";   // <---- URL веб-приложения
+
+// === deviceId ===
+let deviceId = localStorage.getItem("device_id");
+if (!deviceId) {
+  deviceId = "DEV-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  localStorage.setItem("device_id", deviceId);
+}
+
+// === Name ===
+let userName = localStorage.getItem("user_name");
+
+function initUI() {
+  if (!userName) {
+    document.getElementById("nameBlock").style.display = "block";
+    return;
+  }
+
+  document.getElementById("mainBlock").style.display = "block";
+  document.getElementById("userName").textContent = userName;
+}
+
+function saveName() {
+  const name = document.getElementById("nameInput").value.trim();
+  if (!name) {
+    setStatus("Введите имя", false);
+    return;
+  }
+
+  localStorage.setItem("user_name", name);
+  userName = name;
+
+  document.getElementById("nameBlock").style.display = "none";
+  document.getElementById("mainBlock").style.display = "block";
+  document.getElementById("userName").textContent = userName;
+
+  setStatus("Имя сохранено");
+}
+
+
+// === STATUS ===
+function setStatus(text, ok = true) {
+  const el = document.getElementById("status");
+  el.textContent = text;
+  el.style.color = ok ? "#27ae60" : "#c0392b";
+}
+
+
+// === NFC scanning ===
+async function scanNFC() {
+  if (!("NDEFReader" in window)) {
+    setStatus("Ваш браузер не поддерживает WebNFC", false);
+    return;
+  }
+
+  try {
+    const reader = new NDEFReader();
+    await reader.scan();
+    setStatus("Поднесите телефон к NFC-метке...");
+
+    reader.onreading = (event) => {
+      let text = "";
+      for (const record of event.message.records) {
+        const decoder = new TextDecoder(record.encoding || "utf-8");
+        text = decoder.decode(record.data);
+      }
+
+      setStatus("Метка считана: " + text);
+      sendToSheet("NFC_SCAN", text);
+    };
+  } catch (error) {
+    setStatus("Ошибка NFC: " + error, false);
+  }
+}
+
+
+// === CHECK-IN / CHECK-OUT ===
+function sendAction(action) {
+  sendToSheet(action, "");
+}
+
+
+// === Send to Spreadsheet ===
+function sendToSheet(action, info) {
+  fetch(API_URL, {
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify({
+      action: action,
+      deviceId: deviceId,
+      name: userName || "",
+      info: info,
+      userAgent: navigator.userAgent + 
+        " | " + window.screen.width + "x" + window.screen.height
+    })
+  });
+
+  setStatus("Отправлено: " + action);
+}
+
+
+// === init ===
+initUI();
+</script>
+
+</body>
+</html>
