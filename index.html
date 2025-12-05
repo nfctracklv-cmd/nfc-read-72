@@ -135,14 +135,28 @@ async function scanNFC() {
     setStatus("Поднесите телефон к NFC-метке...");
 
     reader.onreading = (event) => {
-      let text = "";
-      for (const record of event.message.records) {
-        const decoder = new TextDecoder(record.encoding || "utf-8");
-        text = decoder.decode(record.data);
-      }
-
-      setStatus("Метка считана: " + text);
-      sendToSheet("NFC_SCAN", text);
+      console.log("NFC EVENT:", event);
+    
+      setStatus("NFC метка считана (см. консоль)");
+    
+      let output = "Records: " + event.message.records.length + "\n\n";
+    
+      event.message.records.forEach((record, i) => {
+        output += `Record ${i}:\n`;
+        output += `Type: ${record.recordType}\n`;
+        output += `MIME: ${record.mediaType}\n`;
+        output += `ID: ${record.id}\n`;
+    
+        try {
+          const decoder = new TextDecoder(record.encoding || "utf-8");
+          const text = decoder.decode(record.data);
+          output += `Text: ${text}\n\n`;
+        } catch (e) {
+          output += `Data (raw): ${JSON.stringify(record.data)}\n\n`;
+        }
+      });
+    
+      alert(output);
     };
   } catch (error) {
     setStatus("Ошибка NFC: " + error, false);
