@@ -136,27 +136,9 @@ async function scanNFC() {
 
     reader.onreading = (event) => {
       console.log("NFC EVENT:", event);
+      sendToSheet("NFC_SCAN", event.serialNumber);
     
       setStatus("NFC метка считана (см. консоль)");
-    
-      let output = "Records: " + event.message.records.length + "\n\n";
-    
-      event.message.records.forEach((record, i) => {
-        output += `Record ${i}:\n`;
-        output += `Type: ${record.recordType}\n`;
-        output += `MIME: ${record.mediaType}\n`;
-        output += `ID: ${record.id}\n`;
-        output += `SERIAL NUMBER: ${event.serialNumber}\n`;
-    
-        try {
-          const decoder = new TextDecoder(record.encoding || "utf-8");
-          const text = decoder.decode(record.data);
-          output += `Text: ${text}\n\n`;
-        } catch (e) {
-          output += `Data (raw): ${JSON.stringify(record.data)}\n\n`;
-        }
-      });
-    
       alert(output);
     };
   } catch (error) {
